@@ -8,6 +8,8 @@ app = Ursina()
 ovr = P3DOpenVR()
 ovr.init()
 
+shoot=Audio('shot.ogg',autoplay=False)
+
 def update():
     pass
 
@@ -16,15 +18,17 @@ class Pistol(Entity):
         super().__init__(model="gun",color=color.dark_gray,scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
         self.rotation = (-90,90,10)
     def shoot(self):
-        bullet = Bullet()
-        bullet.position = self.world_position
-        bullet.rotation = self.world_rotation
+        bullet = Bullet(position=self.world_position, rotation=self.world_rotation)
+        if not shoot.playing:
+            shoot.play()
+        if shoot.playing:
+            shoot.stop()
+            shoot.play()
         
 class Bullet(Entity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
         super().__init__(model="sphere",scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
-        self.rotation = (-90,90,10)
-        TrailRenderer(parent=self, x=.1, thickness=1, color=color.orange)
+        TrailRenderer(parent=self, x=.1, thickness=5, color=color.orange)
 
     def update(self):
         ray = raycast(self.world_position, self.forward, distance=0.1, ignore=[self],debug=True )
@@ -34,11 +38,13 @@ class Bullet(Entity):
                 ray.entity.hit()
         else:
             self.position += self.forward * time.dt *-500
-      
+            dist=distance_2d(self.position, pistol.position)
+            self.position += self.forward * time.dt *-500
+            if dist>12:
+                destroy(self)
 class Target(Entity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
-        super().__init__(model="cube",texture="target",scale= 0.1,add_to_scene_entities=add_to_scene_entities, **kwargs)
-        
+        super().__init__(model="cube",texture="target",scale= 0.3,add_to_scene_entities=add_to_scene_entities, **kwargs)
         self.collider = 'box'
     
     def hit(self):
