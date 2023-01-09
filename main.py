@@ -13,7 +13,7 @@ def update():
 
 class Pistol(Entity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
-        super().__init__(model="gun",scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
+        super().__init__(model="gun",color=color.dark_gray,scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
         self.rotation = (-90,90,10)
     def shoot(self):
         bullet = Bullet()
@@ -27,8 +27,24 @@ class Bullet(Entity):
         TrailRenderer(parent=self, x=.1, thickness=1, color=color.orange)
 
     def update(self):
-        self.position += self.forward * time.dt *-500
-
+        ray = raycast(self.world_position, self.forward, distance=0.1, ignore=[self],debug=True )
+        if ray.hit:
+            destroy(self)
+            if hasattr(ray.entity, 'hit'):
+                ray.entity.hit()
+        else:
+            self.position += self.forward * time.dt *-500
+      
+class Target(Entity):
+    def __init__(self, add_to_scene_entities=True, **kwargs):
+        super().__init__(model="cube",texture="target",scale= 0.1,add_to_scene_entities=add_to_scene_entities, **kwargs)
+        
+        self.collider = 'box'
+    
+    def hit(self):
+        destroy(self)
+    
+    
 def process_vr_event(event):
     if event.eventType == 200:
         print("shoot")
@@ -49,11 +65,26 @@ def new_tracked_device(device_index, device_anchor):
         model.set_scale(0.1)
 
 
+def changez():
+    pistol.rotation_z = zslider.value
+def changey():
+    pistol.rotation_y = yslider.value
+def changex():
+    pistol.rotation_x = xslider.value
+
+xslider = Slider(parent=camera.ui, min=-180, max=180, step=1, text="x", dynamic=True, origin=(-.5, .5), y=-.1, value=-90,on_value_changed=changex)
+yslider = Slider(parent=camera.ui, min=-180, max=180, step=1, text="y", dynamic=True, origin=(-.5, .5), y=0, value=90,on_value_changed=changey)
+zslider = Slider(parent=camera.ui, min=-180, max=180, step=1, text="z", dynamic=True, origin=(-.5, .5), y=.1, value=10,on_value_changed=changez)
+
 pistol = Pistol()
+
+Entity(model="plane", scale=100, texture="grass",texture_scale=(4,4), double_sided=True, collider="box", color=color.green)
+
+targets = [Target(position=(0,1,-1))]
+
 # Register a general event handler
 ovr.register_event_handler(process_vr_event)
 
-Text(text="Press 'h' to hide the controllers", scale=0.05, parent=camera.ui, position=(0, 0.1))
 
 ovr.set_new_tracked_device_handler(new_tracked_device)
 app.run()
