@@ -1,6 +1,5 @@
 from ursina import *
-import openvr
-from panda3d.core import ExecutionEnvironment
+from panda3d.core import Camera as PandaCamera
 from p3dopenvr.p3dopenvr import *
 from ursina.prefabs.trail_renderer import TrailRenderer
 app = Ursina()
@@ -71,7 +70,7 @@ def new_tracked_device(device_index, device_anchor):
         model.reparent_to(device_anchor)
         model.set_scale(0.1)
 
-
+"""
 def changez():
     pistol.rotation_z = zslider.value
 def changey():
@@ -79,10 +78,17 @@ def changey():
 def changex():
     pistol.rotation_x = xslider.value
 
-xslider = Slider(parent=camera.ui, min=-180, max=180, step=1, text="x", dynamic=True, origin=(-.5, .5), y=-.1, value=-90,on_value_changed=changex)
-yslider = Slider(parent=camera.ui, min=-180, max=180, step=1, text="y", dynamic=True, origin=(-.5, .5), y=0, value=90,on_value_changed=changey)
-zslider = Slider(parent=camera.ui, min=-180, max=180, step=1, text="z", dynamic=True, origin=(-.5, .5), y=.1, value=10,on_value_changed=changez)
+ui_camera = ovr.left_cam
+ui_lens = MatrixLens()
+ui_lens.set_user_mat(ovr.projection_left)
+ui_lens.set_near_far(-1000, 1000)
+ui_camera.node().set_lens(ui_lens)
+camera.ui =  Entity(eternal=True, name='ui', parent=ui_camera, scale=(camera.ui_size*.5, camera.ui_size*.5))
 
+xslider = Slider(parent=camera.ui,scale=.05, min=-180, max=180, step=1, text="x", dynamic=True, origin=(-.5, .5),z=1,y=-.005, value=-90,on_value_changed=changex)
+yslider = Slider(parent=camera.ui,scale=.05, min=-180, max=180, step=1, text="y", dynamic=True, origin=(-.5, .5),z=1, y=0, value=90,on_value_changed=changey)
+zslider = Slider(parent=camera.ui,scale=.05, min=-180, max=180, step=1, text="z", dynamic=True, origin=(-.5, .5),z=1, y=.005, value=10,on_value_changed=changez)
+"""
 pistol = Pistol()
 
 Entity(model="plane", scale=100, texture="grass",texture_scale=(4,4), double_sided=True, collider="box", color=color.green)
@@ -91,7 +97,6 @@ targets = [Target(position=(random.randint(-5,5),1, random.randint(1,10))) for _
 
 # Register a general event handler
 ovr.register_event_handler(process_vr_event)
-
 
 ovr.set_new_tracked_device_handler(new_tracked_device)
 app.run()
