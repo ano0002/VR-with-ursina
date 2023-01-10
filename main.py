@@ -18,7 +18,7 @@ class Pistol(Entity):
         super().__init__(model="gun",color=color.dark_gray,scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
         self.rotation = (-90,90,10)
     def shoot(self):
-        bullet = Bullet(position=self.world_position, rotation=self.world_rotation)
+        bullet = Bullet(position=self.world_position+self.back*20, rotation=self.world_rotation)
         if not shoot.playing:
             shoot.play()
         if shoot.playing:
@@ -29,7 +29,7 @@ class Bullet(Entity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
         super().__init__(model="sphere",scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
         TrailRenderer(parent=self, x=.1, thickness=5, color=color.orange)
-
+    
     def update(self):
         ray = raycast(self.world_position, self.forward, distance=0.1, ignore=[self],debug=True )
         if ray.hit:
@@ -42,6 +42,7 @@ class Bullet(Entity):
             self.position += self.forward * time.dt *-500
             if dist>12:
                 destroy(self)
+    
 class Target(Entity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
         super().__init__(model="cube",texture="target",scale= 0.3,add_to_scene_entities=add_to_scene_entities, **kwargs)
@@ -86,7 +87,7 @@ pistol = Pistol()
 
 Entity(model="plane", scale=100, texture="grass",texture_scale=(4,4), double_sided=True, collider="box", color=color.green)
 
-targets = [Target(position=(0,1,-1))]
+targets = [Target(position=(random.randint(-5,5),1, random.randint(1,10))) for _ in range(10)]
 
 # Register a general event handler
 ovr.register_event_handler(process_vr_event)
