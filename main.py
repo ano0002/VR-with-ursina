@@ -23,29 +23,47 @@ class PhysicsEntity(Entity):
         self.freeze = False
         self.mass = mass
         self.gravity = gravity
-    def custom_update(self):
-        pass
+        self.last_position = self.world_position
     def update(self):
         if not self.freeze and not self.held:
-            ray = raycast(self.world_position, (0,-1,0), distance=-self.velocity[1]*time.dt, ignore=(self,),debug=True )
+            ray = raycast(self.world_position, (0,-1,0), distance=-self.velocity[1]*time.dt, ignore=(self,))
             if ray.world_point:
                 self.position = ray.world_point
-                self.velocity = Vec3(0,0,0)
-                self.freeze = True
+                self.velocity[1] *= -0.5
+                self.velocity *= 0.8
             else:
                 self.position += self.velocity*time.dt
-                self.velocity[1] -= self.gravity*time.dt
-                self.velocity[0]*=0.9
-                self.velocity[2]*=0.9
-                
-        self.custom_update()
+                self.velocity[1] -= self.gravity*self.mass*time.dt
+            self.velocity *= 0.9
+            self.velocity[0] = round(self.velocity[0], 2)
+            self.velocity[1] = round(self.velocity[1], 2)
+            self.velocity[2] = round(self.velocity[2], 2)    
+        
+        elif self.held:
+            self.velocity = (self.world_position - self.last_position) / time.dt
+            self.last_position = self.world_position
+        
+        if hasattr(self, 'custom_update'):
+            self.custom_update()
 
+    def _on_hold(self):
+        self.parent = self.held_by
+        self.position =(0,0,0)
+        if hasattr(self, 'on_hold'):
+            self.on_hold()
+            
+    def _on_release(self):
+        self.position = self.world_position
+        self.rotation = self.world_rotation
+        self.parent = scene
+        if hasattr(self, 'on_release'):
+            self.on_release()
+            
 class Pistol(PhysicsEntity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
         super().__init__(model="gun",color=color.dark_gray,scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
-        
-        self.rotation = Vec3(0,90,10)
-        self.held = False
+        self.rotation = Vec3(0,90,0)
+        self.mass = 5
     def shoot(self):
         bullet = Bullet(position=self.world_position+self.back*20, rotation=self.world_rotation)
         if not shoot_sound.playing:
@@ -53,14 +71,9 @@ class Pistol(PhysicsEntity):
         if shoot_sound.playing:
             shoot_sound.stop()
             shoot_sound.play()
+            
     def on_hold(self):
-        self.parent = self.held_by
         self.rotation = Vec3(-90,90,10)
-    def on_release(self):
-        self.position = self.world_position
-        self.rotation = self.world_rotation
-        self.parent = scene
-        self.freeze = False
     
     def input(self,key):
         if key == 'right vr_trigger' and self.held:
@@ -107,10 +120,10 @@ def input(key):
             if distance(e.world_position, right.getPos(scene)) < 0.5:
                 e.held = True
                 e.held_by = right
-                e.position =(0,0,0)
-                if hasattr(e, 'on_hold'):
-                    e.on_hold() 
+                if hasattr(e, '_on_hold'):
+                    e._on_hold() 
                 current_weapon = e
+                right_hand.disable()
                 break
     if key == 'right vr_grip up':
         if not current_weapon or not right :
@@ -118,9 +131,10 @@ def input(key):
         
         current_weapon.held = False
         current_weapon.held_by = None
-        if hasattr(current_weapon, 'on_release'):
-            current_weapon.on_release()
+        if hasattr(current_weapon, '_on_release'):
+            current_weapon._on_release()
         current_weapon = None
+        right_hand.enable()
 
 
 classes_map = { openvr.TrackedDeviceClass_Invalid: 'Invalid',
@@ -233,23 +247,22 @@ def process_vr_event(event):
                             openvr.VREvent_ButtonTouch,
                             openvr.VREvent_ButtonUntouch):
         button_event(event)
-
-
+        
 def new_tracked_device(device_index, device_anchor):
     """
     Attach a trivial model to the anchor or the detected device
     """
-    global right , left
+    global right , left,right_hand,left_hand
     print("Adding new device", device_anchor.name)
     device_class = ovr.vr_system.getTrackedDeviceClass(device_index)
     if device_class == openvr.TrackedDeviceClass_Controller:
         if "left" in device_anchor.name:
-            model = Entity(model="vr_glove_right_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, 0), color=color.white)
-            model.parent = device_anchor
+            left_hand = Entity(model="vr_glove_right_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
+            left_hand.parent = device_anchor
             left = device_anchor
         else :
-            model = Entity(model="vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, 0), color=color.white)
-            model.parent = device_anchor
+            right_hand = Entity(model="vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
+            right_hand.parent = device_anchor
             right = device_anchor
         #pistol.parent = device_anchor
     """
