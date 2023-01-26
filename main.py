@@ -137,19 +137,7 @@ def input(key):
                 current_weapon = e
                 right_hand.disable()
                 break
-            """ experimental dynamic pickups
-            distx = e.getPos().getX() - right.getPos().getX()
-            disty = e.getPos().getY() - right.getPos().getY()
-            if distx <= 0.08:
-                if disty <= -0.8:
-                    pistol.model='models/gun_hold'
-                    e.held = True
-                    e.held_by = right
-                    e.position =(0,0,0)
-                    if hasattr(e, 'on_hold'):
-                        e.on_hold() 
-                    current_weapon = e
-                    break"""
+            
     if key == 'right vr_grip up':
         
         if not current_weapon or not right :
@@ -159,6 +147,7 @@ def input(key):
         if hasattr(current_weapon, '_on_release'):
             current_weapon._on_release()
         current_weapon = None
+        right_hand.enable()
     if key == 'left vr_grip':
         left_hand_close.show()
         left_hand.disable()
