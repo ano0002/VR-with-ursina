@@ -160,6 +160,32 @@ def input(key):
             current_weapon._on_release()
         current_weapon = None
         right_hand.enable()
+    if key == 'left vr_grip':
+        if not left :
+            return
+        for e in scene.entities:
+            if not issubclass(type(e), PhysicsEntity):
+                continue
+            if e.held:
+                continue
+            if distance(e.world_position, left.getPos(scene)) < 0.5:
+                e.held = True
+                e.held_by = left
+                if hasattr(e, '_on_hold'):
+                    e._on_hold() 
+                current_weapon = e
+                left_hand.disable()
+                break
+    if key == 'left vr_grip up':
+        if not current_weapon or not left :
+            return
+        
+        current_weapon.held = False
+        current_weapon.held_by = None
+        if hasattr(current_weapon, '_on_release'):
+            current_weapon._on_release()
+        current_weapon = None
+        left_hand.enable()
 
 
 classes_map = { openvr.TrackedDeviceClass_Invalid: 'Invalid',
