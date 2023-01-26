@@ -40,6 +40,7 @@ class PhysicsEntity(Entity):
                 self.position += self.velocity*time.dt
                 self.velocity[1] -= self.gravity*self.mass*time.dt
             self.velocity *= 0.9
+            
             self.velocity[0] = round(self.velocity[0], 2)
             self.velocity[1] = round(self.velocity[1], 2)
             self.velocity[2] = round(self.velocity[2], 2)    
@@ -150,14 +151,12 @@ def input(key):
         right_hand.enable()
     if key == 'left vr_grip':
         left_hand_close.show()
-        left_hand.disable()
         left_hand_open.hide()
         left_hand_close.play('ArmatureAction.001')
     if key == 'left vr_grip up':
         left_hand_open.show()
         left_hand_close.hide()
         left_hand_open.play('ArmatureAction.001')
-        invoke(left_hand.enable,delay=1)
 
 classes_map = { openvr.TrackedDeviceClass_Invalid: 'Invalid',
                 openvr.TrackedDeviceClass_HMD: 'HMD',
@@ -275,36 +274,29 @@ def new_tracked_device(device_index, device_anchor):
     """
     Attach a trivial model to the anchor or the detected device
     """
-    global right , left,right_hand,left_hand, left_hand_close, left_hand_open
+    global right , left,right_hand, left_hand_close, left_hand_open
     print("Adding new device", device_anchor.name)
     device_class = ovr.vr_system.getTrackedDeviceClass(device_index)
     if device_class == openvr.TrackedDeviceClass_Controller:
         if "left" in device_anchor.name:
-            left_hand = Entity(model="vr_glove_right_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.clear)
-            left_hand.parent = device_anchor
+            
             left = device_anchor
             left_hand_close=Actor('models/vr_glove_left_model_slim_close.gltf')
             left_hand_close.setH(-180)
             left_hand_close.setPos(0,0,-0.1)
             left_hand_close.reparentTo(left)
-            left_hand_close.play('ArmatureAction.001')
+            left_hand_close.hide()
+            
             left_hand_open=Actor('models/vr_glove_left_model_slim_open.gltf')
             left_hand_open.setH(-180)
             left_hand_open.setPos(0,0,-0.1)
             left_hand_open.reparentTo(left)
-            left_hand_close.hide()
-            #you'll have to sort out the rotations and postions and when the anim plays
+            
         else :
-            right_hand = Entity(model="vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
+            right_hand = Entity(model="models/vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
             right_hand.parent = device_anchor
             right = device_anchor
         #pistol.parent = device_anchor
-    """
-    else:
-        model = loader.loadModel("camera")
-        model.reparent_to(device_anchor)
-        model.set_scale(0.1)
-    """
 
 pistol = Pistol(position = (0,2,1))
 
