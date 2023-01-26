@@ -11,13 +11,7 @@ app = Ursina()
 ovr = P3DOpenVR()
 ovr.init()
 
-left_hand_close=Actor('models/vr_glove_left_model_close.gltf')
-left_hand_close.reparentTo(left)
-left_hand_close.play('ArmatureAction.001_Armature')
-left_hand_open=Actor('models/vr_glove_left_model_slim_open.gltf')
-left_hand_open.reparentTp(left)
-left_hand_open.play()
-shoot_sound=Audio('shot.ogg',autoplay=False)
+
 shoot_sound=Audio('shot.ogg',autoplay=False)
 
 current_weapon = None
@@ -291,6 +285,13 @@ def new_tracked_device(device_index, device_anchor):
             left_hand = Entity(model="vr_glove_right_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
             left_hand.parent = device_anchor
             left = device_anchor
+            left_hand_close=Actor('models/vr_glove_left_model_slim_close.gltf')
+            left_hand_close.reparentTo(left)
+            left_hand_close.loop('close')
+            left_hand_open=Actor('models/vr_glove_left_model_slim_open.gltf')
+            left_hand_open.reparentTo(left)
+            left_hand_open.play('open')
+            #you'll have to sort out the rotations and postions and when the anim plays
         else :
             right_hand = Entity(model="vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
             right_hand.parent = device_anchor
@@ -310,6 +311,7 @@ ground = Entity(model="plane", scale=100, texture="grass",texture_scale=(4,4), d
 targets = [Target(position=(random.randint(-5,5),1, random.randint(1,10))) for _ in range(10)]
 
 table = Entity(model="cube", scale=(2,1.5,1), texture="wood", collider="box",position=(0,0,1))
+
 
 # Register a general event handler
 ovr.register_event_handler(process_vr_event)
