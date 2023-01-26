@@ -2,11 +2,25 @@ from ursina import *
 from panda3d.core import Camera as PandaCamera
 from p3dopenvr.p3dopenvr import *
 from ursina.prefabs.trail_renderer import TrailRenderer
+from direct.actor.Actor import Actor
+"""
+bugs idk how to fix:
+- if you drop the gun and pick it up before it hits the floor it keeps its velocity that it was going
+at so if you spam it it falls down really fast
+- dynamic pickup both does and doesn't work cant really explain it
+"""
+
 app = Ursina()
 
 ovr = P3DOpenVR()
 ovr.init()
 
+left_hand_close=Actor('models/vr_glove_left_model_close.gltf')
+left_hand_close.reparentTo(left)
+left_hand_close.play('ArmatureAction.001_Armature')
+left_hand_open=Actor('models/vr_glove_left_model_slim_open.gltf')
+left_hand_open.reparentTp(left)
+left_hand_open.play()
 shoot_sound=Audio('shot.ogg',autoplay=False)
 
 current_weapon = None
@@ -23,47 +37,29 @@ class PhysicsEntity(Entity):
         self.freeze = False
         self.mass = mass
         self.gravity = gravity
-        self.last_position = self.world_position
+    def custom_update(self):
+        pass
     def update(self):
         if not self.freeze and not self.held:
-            ray = raycast(self.world_position, (0,-1,0), distance=-self.velocity[1]*time.dt, ignore=(self,))
+            ray = raycast(self.world_position, (0,-1,0), distance=-self.velocity[1]*time.dt, ignore=(self,),debug=True )
             if ray.world_point:
                 self.position = ray.world_point
-                self.velocity[1] *= -0.5
-                self.velocity *= 0.8
+                self.velocity = Vec3(0,0,0)
+                self.freeze = True
             else:
                 self.position += self.velocity*time.dt
-                self.velocity[1] -= self.gravity*self.mass*time.dt
-            self.velocity *= 0.9
-            self.velocity[0] = round(self.velocity[0], 2)
-            self.velocity[1] = round(self.velocity[1], 2)
-            self.velocity[2] = round(self.velocity[2], 2)    
-        
-        elif self.held:
-            self.velocity = (self.world_position - self.last_position) / time.dt
-            self.last_position = self.world_position
-        
-        if hasattr(self, 'custom_update'):
-            self.custom_update()
+                self.velocity[1] -= self.gravity*time.dt
+                self.velocity[0]*=0.9
+                self.velocity[2]*=0.9
+                
+        self.custom_update()
 
-    def _on_hold(self):
-        self.parent = self.held_by
-        self.position =(0,0,0)
-        if hasattr(self, 'on_hold'):
-            self.on_hold()
-            
-    def _on_release(self):
-        self.position = self.world_position
-        self.rotation = self.world_rotation
-        self.parent = scene
-        if hasattr(self, 'on_release'):
-            self.on_release()
-            
 class Pistol(PhysicsEntity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
         super().__init__(model="gun",color=color.dark_gray,scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
-        self.rotation = Vec3(0,90,0)
-        self.mass = 5
+        
+        self.rotation = Vec3(0,90,10)
+        self.held = False
     def shoot(self):
         bullet = Bullet(position=self.world_position+self.back*20, rotation=self.world_rotation)
         if not shoot_sound.playing:
@@ -71,20 +67,25 @@ class Pistol(PhysicsEntity):
         if shoot_sound.playing:
             shoot_sound.stop()
             shoot_sound.play()
-            
     def on_hold(self):
+        self.parent = self.held_by
         self.rotation = Vec3(-90,90,10)
+    def on_release(self):
+        self.position = self.world_position
+        self.rotation = self.world_rotation
+        self.parent = scene
+        self.freeze = False
     
     def input(self,key):
         if key == 'right vr_trigger' and self.held:
             self.shoot()
         
-        
+
 class Bullet(Entity):
     def __init__(self, add_to_scene_entities=True, **kwargs):
         super().__init__(model="sphere",scale= 0.01,add_to_scene_entities=add_to_scene_entities, **kwargs)
-        TrailRenderer(parent=self, x=.1, thickness=5, color=color.orange)
-    
+        TrailRenderer(parent=self, x=.1, thickness=5, color=color.orange,alpha=0.4)
+
     def update(self):
         ray = raycast(self.world_position, self.forward, distance=0.1, ignore=[self],debug=True )
         if ray.hit:
@@ -94,7 +95,7 @@ class Bullet(Entity):
         else:
             self.position += self.forward * time.dt *-500
             dist=distance_2d(self.position, pistol.position)
-            self.position += self.forward * time.dt *-500
+            self.position += self.forward * time.dt *-600 # faster to act like a real bullet speed
             if dist>12:
                 destroy(self)
     
@@ -105,7 +106,13 @@ class Target(Entity):
     
     def hit(self):
         destroy(self)
-    
+        """
+        def respawn():
+            targets = [Target(position=(random.randint(-5,5),1, random.randint(1,10)))]
+        invoke(respawn,delay=1.5)
+
+        simple respawn funcion
+        """
 def input(key):
     global current_weapon
     print(key)
@@ -118,23 +125,37 @@ def input(key):
             if e.held:
                 continue
             if distance(e.world_position, right.getPos(scene)) < 0.5:
+                pistol.model='models/gun_hold'
                 e.held = True
                 e.held_by = right
-                if hasattr(e, '_on_hold'):
-                    e._on_hold() 
+                e.position =(0,0,0)
+                if hasattr(e, 'on_hold'):
+                    e.on_hold() 
                 current_weapon = e
-                right_hand.disable()
                 break
+
+            """ experimental dynamic pickups
+            distx = e.getPos().getX() - right.getPos().getX()
+            disty = e.getPos().getY() - right.getPos().getY()
+            if distx <= 0.08:
+                if disty <= -0.8:
+                    pistol.model='models/gun_hold'
+                    e.held = True
+                    e.held_by = right
+                    e.position =(0,0,0)
+                    if hasattr(e, 'on_hold'):
+                        e.on_hold() 
+                    current_weapon = e
+                    break"""
     if key == 'right vr_grip up':
         if not current_weapon or not right :
             return
         
         current_weapon.held = False
         current_weapon.held_by = None
-        if hasattr(current_weapon, '_on_release'):
-            current_weapon._on_release()
+        if hasattr(current_weapon, 'on_release'):
+            current_weapon.on_release()
         current_weapon = None
-        right_hand.enable()
 
 
 classes_map = { openvr.TrackedDeviceClass_Invalid: 'Invalid',
@@ -247,23 +268,26 @@ def process_vr_event(event):
                             openvr.VREvent_ButtonTouch,
                             openvr.VREvent_ButtonUntouch):
         button_event(event)
-        
+
+
 def new_tracked_device(device_index, device_anchor):
     """
     Attach a trivial model to the anchor or the detected device
     """
-    global right , left,right_hand,left_hand
+    global right , left
     print("Adding new device", device_anchor.name)
     device_class = ovr.vr_system.getTrackedDeviceClass(device_index)
     if device_class == openvr.TrackedDeviceClass_Controller:
         if "left" in device_anchor.name:
-            left_hand = Entity(model="vr_glove_right_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
-            left_hand.parent = device_anchor
+            Lmodel = Entity(model="vr_glove_right_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -0.1), color=color.white)
+            Lmodel.parent = device_anchor
             left = device_anchor
+            #Left model is the right Hand?
         else :
-            right_hand = Entity(model="vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -.1), color=color.white)
-            right_hand.parent = device_anchor
+            Rmodel = Entity(model="vr_glove_left_model_slim.fbx", scale=1, rotation=Vec3(0,-180, 0), position=Vec3(0, 0, -0.1), color=color.white)
+            Rmodel.parent = device_anchor
             right = device_anchor
+            #Right model is the left Hand?
         #pistol.parent = device_anchor
     """
     else:
